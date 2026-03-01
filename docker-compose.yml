@@ -20,9 +20,33 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - abrigo
-    # Expose only to other containers by default; open 5432 on host only if needed
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
+
+  postgres_init_test_db:
+    image: postgres:18
+    container_name: postgres_init_test_db
+    env_file:
+      - ../.env
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${DB_USER:-postgres}
+      PGPASSWORD: ${DB_PASSWORD:-postgres}
+      TEST_DB_NAME: ${TEST_DB_NAME:-estoque_test}
+    command: >
+      sh -c "
+      until pg_isready -h postgres -U $$PGUSER; do sleep 1; done;
+      createdb -h postgres -U $$PGUSER $$TEST_DB_NAME 2>/dev/null || true;
+      echo 'Banco de testes $$TEST_DB_NAME garantido.';
+      exit 0
+      "
+    depends_on:
+      postgres:
+        condition: service_started
+    networks:
+      - abrigo
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -52,8 +76,12 @@ services:
       - ../backend:/app
       - /app/node_modules
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_started
+      postgres_init_test_db:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
     networks:
       - abrigo
     # Not exposed to host when using nginx; expose only if running without proxy

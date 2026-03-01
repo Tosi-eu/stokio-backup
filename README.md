@@ -26,21 +26,27 @@ infrastructure/
 ## Prerequisites
 
 - Docker and Docker Compose on the VPS
-- `.env` at the **repository root** with DB, JWT, and app variables (see root `.env.sample`)
+- `.env` at the **repository root** with DB, JWT, and app variables (copy root `cp .env.example .env` and fill in)
 - (Optional) SSL certificates for HTTPS in `proxy/nginx/ssl/`
 
 ## Run the stack
 
-From the **repository root**:
+From the **repository root** (the root `docker-compose.yml` includes this file):
+
+```bash
+docker compose up -d --build
+```
+
+Or explicitly:
 
 ```bash
 docker compose -f infrastructure/docker-compose.yml up -d --build
 ```
 
-Or from this directory:
+From the `infrastructure/` directory:
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml up -d --build
 ```
 
 - App (via proxy): **http://localhost** (port 80)
