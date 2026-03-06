@@ -1,11 +1,10 @@
-# =============================================================================
-# Abrigo - Infrastructure stack (VPS / production-style)
-# Run from repository root: docker compose -f infrastructure/docker-compose.yml up -d
-# Or from this directory:  docker compose -f docker-compose.yml up -d
-# =============================================================================
-
 services:
   postgres:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     image: postgres:18
     container_name: postgres
     restart: always
@@ -22,6 +21,12 @@ services:
       - abrigo
     ports:
       - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   postgres_init_test_db:
     image: postgres:18
@@ -52,10 +57,21 @@ services:
     image: redis:7-alpine
     container_name: redis
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - abrigo
     ports:
       - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   backend:
     build:
@@ -77,16 +93,26 @@ services:
       - /app/node_modules
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       postgres_init_test_db:
         condition: service_completed_successfully
       redis:
-        condition: service_started
+        condition: service_healthy
     networks:
       - abrigo
-    # Not exposed to host when using nginx; expose only if running without proxy
     expose:
       - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -s http://127.0.0.1:3000/api/v1/health | grep -q '\"status\":\"ok\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build:
@@ -97,6 +123,11 @@ services:
         VITE_LOGO_URL: ${VITE_LOGO_URL:-/logo.png}
     container_name: frontend
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - abrigo
     expose:
@@ -109,6 +140,11 @@ services:
     image: nginx:alpine
     container_name: proxy
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "80:80"
       - "443:443"
@@ -128,6 +164,11 @@ services:
       dockerfile: Dockerfile
     container_name: postgres_backup
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - ../.env
     environment:
@@ -135,6 +176,12 @@ services:
       POSTGRES_DB: ${DB_NAME:-estoque}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      R2_RETENTION_COUNT: ${R2_RETENTION_COUNT:-168}
+      BACKUP_ENCRYPTION_PASSWORD: ${BACKUP_ENCRYPTION_PASSWORD:-}
     volumes:
       - backups:/backups
     depends_on:
