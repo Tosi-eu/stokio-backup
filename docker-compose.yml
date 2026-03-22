@@ -121,6 +121,8 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost/api/v1}
         VITE_LOGO_URL: ${VITE_LOGO_URL:-/logo.png}
+        VITE_PUBLIC_APP_NAME: ${VITE_PUBLIC_APP_NAME:-Gestão de Abrigos}
+        VITE_PUBLIC_APP_LOGO_URL: ${VITE_PUBLIC_APP_LOGO_URL:-/logo.png}
     container_name: frontend
     restart: always
     logging:
