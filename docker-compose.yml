@@ -119,11 +119,12 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost/api/v1}
-        VITE_LOGO_URL: ${VITE_LOGO_URL:-/logo.png}
-        VITE_PUBLIC_APP_NAME: ${VITE_PUBLIC_APP_NAME:-}
-        VITE_PUBLIC_APP_LOGO_URL: ${VITE_PUBLIC_APP_LOGO_URL:-}
-        VITE_R2_PUBLIC_BASE_URL: ${VITE_R2_PUBLIC_BASE_URL:-}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-${VITE_API_BASE_URL:-http://localhost/api/v1}}
+        NEXT_PUBLIC_LOGO_URL: ${NEXT_PUBLIC_LOGO_URL:-${VITE_LOGO_URL:-/default_logo.png}}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-${VITE_PUBLIC_APP_NAME:-}}
+        NEXT_PUBLIC_APP_LOGO_URL: ${NEXT_PUBLIC_APP_LOGO_URL:-${VITE_PUBLIC_APP_LOGO_URL:-}}
+        NEXT_PUBLIC_R2_PUBLIC_BASE_URL: ${NEXT_PUBLIC_R2_PUBLIC_BASE_URL:-${VITE_R2_PUBLIC_BASE_URL:-${R2_PUBLIC_BASE_URL:-}}}
+        NEXT_PUBLIC_X_API_KEY: ${NEXT_PUBLIC_X_API_KEY:-}
     container_name: frontend
     restart: always
     logging:
@@ -134,7 +135,8 @@ services:
     networks:
       - abrigo
     expose:
-      - "80"
+      # Alinhado ao frontend/Dockerfile (Next standalone em PORT=8081)
+      - "8081"
     depends_on:
       - backend
 
