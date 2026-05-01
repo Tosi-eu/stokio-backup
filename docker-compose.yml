@@ -5,8 +5,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    image: postgres:18
-    container_name: postgres
+    image: postgres:16
     restart: always
     env_file:
       - ../.env
@@ -16,11 +15,11 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       PGDATA: /var/lib/postgresql/data
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - abrigo_main_postgres_data:/var/lib/postgresql/data
     networks:
       - abrigo
-    ports:
-      - "127.0.0.1:5433:5432"
+    # Do not publish to host by default to avoid port conflicts.
+    # Use `docker compose port postgres 5432` or add a port mapping if needed.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
       interval: 10s
@@ -30,7 +29,6 @@ services:
 
   postgres_init_test_db:
     image: postgres:18
-    container_name: postgres_init_test_db
     env_file:
       - ../.env
     environment:
@@ -55,7 +53,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: redis
     restart: always
     logging:
       driver: json-file
@@ -64,8 +61,6 @@ services:
         max-file: "3"
     networks:
       - abrigo
-    ports:
-      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -73,14 +68,59 @@ services:
       retries: 5
       start_period: 5s
 
+  temporal-postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal_postgres_data:/var/lib/postgresql/data
+    networks:
+      - abrigo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    restart: always
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: temporal-postgres
+    networks:
+      - abrigo
+    ports:
+      - "127.0.0.1:17233:7233"
+
+  temporal-ui:
+    image: temporalio/ui:2.30.2
+    restart: always
+    depends_on:
+      - temporal
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    networks:
+      - abrigo
+    ports:
+      - "127.0.0.1:8090:8080"
+
   backend:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: backend
     restart: always
-    # Carrega a raiz e o backend: variáveis como PRICING_API_* costumam estar só em
-    # backend/.env; sem o segundo ficheiro o serviço de preços fica desligado no container.
     env_file:
       - ../.env
       - ../backend/.env
@@ -92,6 +132,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       PRICING_API_URL: ${PRICING_API_URL:-http://price-search:3010}
+      ENABLE_CRON: "false"
+      ENABLE_TEMPORAL: "true"
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: abrigo
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -101,6 +146,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      temporal:
+        condition: service_started
     networks:
       - abrigo
     expose:
@@ -116,12 +163,68 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      - abrigo_import_uploads:/var/lib/abrigo-imports
+
+  temporal-worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.temporal
+    restart: always
+    env_file:
+      - ../.env
+      - ../backend/.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PRICING_API_URL: ${PRICING_API_URL:-http://price-search:3010}
+      ENABLE_TEMPORAL: "true"
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: abrigo
+    entrypoint: ["node", "dist/temporal/worker.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+    networks:
+      - abrigo
+    volumes:
+      - abrigo_import_uploads:/var/lib/abrigo-imports
+
+  temporal-init:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.temporal
+    restart: "no"
+    env_file:
+      - ../.env
+      - ../backend/.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      ENABLE_TEMPORAL: "true"
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      TEMPORAL_TASK_QUEUE: abrigo
+      PRICE_BACKFILL_CRON: ${PRICE_BACKFILL_CRON:-15 */2 * * *}
+      NOTIFICATION_BOOTSTRAP_CRON: ${NOTIFICATION_BOOTSTRAP_CRON:-*/30 * * * *}
+    entrypoint: ["node", "dist/temporal/schedules.js"]
+    depends_on:
+      temporal:
+        condition: service_started
+    networks:
+      - abrigo
 
   price-search:
     build:
       context: ../stokio-api-price-search
       dockerfile: Dockerfile
-    container_name: price-search
     restart: always
     env_file:
       - ../.env
@@ -132,8 +235,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:3000}
-      ENABLE_CRON: ${ENABLE_CRON:-true}
-      ENABLE_PRICE_BACKFILL_CRON: ${ENABLE_PRICE_BACKFILL_CRON:-true}
+      ENABLE_CRON: "false"
+      ENABLE_PRICE_BACKFILL_CRON: "false"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -160,7 +263,6 @@ services:
         NEXT_PUBLIC_APP_LOGO_URL: ${NEXT_PUBLIC_APP_LOGO_URL:-${VITE_PUBLIC_APP_LOGO_URL:-}}
         NEXT_PUBLIC_R2_PUBLIC_BASE_URL: ${NEXT_PUBLIC_R2_PUBLIC_BASE_URL:-${VITE_R2_PUBLIC_BASE_URL:-${R2_PUBLIC_BASE_URL:-}}}
         NEXT_PUBLIC_X_API_KEY: ${NEXT_PUBLIC_X_API_KEY:-}
-    container_name: frontend
     restart: always
     environment:
       HOSTNAME: "0.0.0.0"
@@ -180,7 +282,6 @@ services:
 
   proxy:
     image: nginx:alpine
-    container_name: proxy
     restart: always
     logging:
       driver: json-file
@@ -204,7 +305,6 @@ services:
     build:
       context: ./backup
       dockerfile: Dockerfile
-    container_name: postgres_backup
     restart: always
     logging:
       driver: json-file
@@ -233,7 +333,9 @@ services:
       - abrigo
 
 volumes:
-  postgres_data:
+  abrigo_main_postgres_data:
+  temporal_postgres_data:
+  abrigo_import_uploads:
 
 networks:
   abrigo:
