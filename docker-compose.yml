@@ -341,23 +341,19 @@ services:
     networks:
       - abrigo
 
-  backup:
+  # Backups agendados: Temporal schedule `system-backup-cron` + activity `runSystemBackup`
+  # (runtime.scheduled_backup.* em system_config; UI no painel admin, super-admin).
+  # Dump local pontual (opcional): docker compose --profile backup-tools run --rm backup-tools
+  backup-tools:
+    profiles: ["backup-tools"]
     build:
       context: ./backup
       dockerfile: Dockerfile
-    restart: always
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
     env_file:
       - ../.env
     environment:
-      # Dedicated backup container: allow R2 when credentials exist (stack NODE_ENV may be development)
       NODE_ENV: ${NODE_ENV:-production}
       BACKUP_UPLOAD_R2: ${BACKUP_UPLOAD_R2:-1}
-      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
       POSTGRES_HOST: postgres
       POSTGRES_DB: ${DB_NAME:-estoque}
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -368,9 +364,8 @@ services:
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
       R2_REGION: ${R2_REGION:-auto}
       R2_RETENTION_COUNT: ${R2_RETENTION_COUNT:-30}
-      # Alinhar com outros servicos (scripts que leem DB_* em vez de POSTGRES_*)
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: "5432"
     volumes:
       - ./backups:/backups
     depends_on:

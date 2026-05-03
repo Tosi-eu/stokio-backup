@@ -4,10 +4,8 @@ RUN apk add --no-cache tzdata python3 py3-pip \
   && pip install --break-system-packages --no-cache-dir awscli
 
 COPY backup.sh /backup.sh
-COPY backup-entrypoint.sh /backup-entrypoint.sh
-RUN chmod +x /backup.sh /backup-entrypoint.sh
+RUN chmod +x /backup.sh
 
-# Interval between runs (seconds). Override in compose: BACKUP_INTERVAL_SECONDS
-ENV BACKUP_INTERVAL_SECONDS=86400
-
-CMD ["/backup-entrypoint.sh"]
+# Execução única (ex.: `docker compose --profile backup-tools run --rm backup-tools`).
+# Agendamento em produção: Temporal `system-backup-cron` + system_config `runtime.scheduled_backup.*`.
+CMD ["/backup.sh"]
