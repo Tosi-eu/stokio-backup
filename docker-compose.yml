@@ -27,6 +27,32 @@ services:
       retries: 5
       start_period: 10s
 
+  postgres-pricing:
+    image: postgres:16
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_DB: ${PRICING_DB_NAME:-pricing_cache}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - abrigo_pricing_postgres_data:/var/lib/postgresql/data
+    networks:
+      - abrigo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   postgres_init_test_db:
     image: postgres:18
     env_file:
@@ -247,6 +273,11 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       DB_HOST: postgres
       DB_PORT: 5432
+      PRICING_DB_HOST: postgres-pricing
+      PRICING_DB_PORT: 5432
+      PRICING_DB_NAME: ${PRICING_DB_NAME:-pricing_cache}
+      PRICING_DB_USER: ${DB_USER:-postgres}
+      PRICING_DB_PASSWORD: ${DB_PASSWORD:-postgres}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:3000}
@@ -254,6 +285,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-pricing:
+        condition: service_healthy
       backend:
         condition: service_healthy
     networks:
@@ -376,6 +411,7 @@ services:
 
 volumes:
   abrigo_main_postgres_data:
+  abrigo_pricing_postgres_data:
   temporal_postgres_data:
   abrigo_import_uploads:
 
