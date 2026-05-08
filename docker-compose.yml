@@ -173,7 +173,6 @@ services:
       PRICING_API_KEY: ${PRICING_API_KEY:-}
       PRICING_BASE_URL: ${PRICING_BASE_URL:-}
       ENABLE_CRON: "false"
-      ENABLE_TEMPORAL: "true"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
@@ -224,7 +223,6 @@ services:
       REDIS_PORT: 6379
       PRICING_API_KEY: ${PRICING_API_KEY:-}
       PRICING_BASE_URL: ${PRICING_BASE_URL:-}
-      ENABLE_TEMPORAL: "true"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
@@ -253,7 +251,6 @@ services:
       - ../backend/.env
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      ENABLE_TEMPORAL: "true"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
