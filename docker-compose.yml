@@ -177,6 +177,7 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
+      REPORT_EXPORT_DIR: /var/lib/abrigo-reports
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -205,6 +206,7 @@ services:
         max-file: "3"
     volumes:
       - abrigo_import_uploads:/var/lib/abrigo-imports
+      - abrigo_report_exports:/var/lib/abrigo-reports
 
   temporal-worker:
     build:
@@ -220,13 +222,13 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # Mesmo valor que no backend — a activity de busca de preços corre neste processo.
       PRICING_API_KEY: ${PRICING_API_KEY:-}
       PRICING_BASE_URL: ${PRICING_BASE_URL:-}
       ENABLE_TEMPORAL: "true"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
+      REPORT_EXPORT_DIR: /var/lib/abrigo-reports
     entrypoint: ["node", "dist/temporal/worker.js"]
     depends_on:
       postgres:
@@ -239,6 +241,7 @@ services:
       - abrigo
     volumes:
       - abrigo_import_uploads:/var/lib/abrigo-imports
+      - abrigo_report_exports:/var/lib/abrigo-reports
 
   temporal-init:
     build:
@@ -255,7 +258,6 @@ services:
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
       NOTIFICATION_BOOTSTRAP_CRON: ${NOTIFICATION_BOOTSTRAP_CRON:-*/30 * * * *}
-      # Sobrescreve backend/.env (localhost:5433 = host); na rede Docker usar o serviço postgres:5432
       DB_HOST: postgres
       DB_PORT: 5432
     entrypoint: ["node", "dist/temporal/schedules.js"]
@@ -384,9 +386,6 @@ services:
     networks:
       - abrigo
 
-  # Backups agendados: Temporal schedule `system-backup-cron` + activity `runSystemBackup`
-  # (runtime.scheduled_backup.* em system_config; UI no painel admin, super-admin).
-  # Dump local pontual (opcional): docker compose --profile backup-tools run --rm backup-tools
   backup-tools:
     profiles: ["backup-tools"]
     build:
@@ -422,6 +421,7 @@ volumes:
   abrigo_pricing_postgres_data:
   temporal_postgres_data:
   abrigo_import_uploads:
+  abrigo_report_exports:
 
 networks:
   abrigo:
