@@ -46,6 +46,8 @@ services:
       - abrigo_pricing_postgres_data:/var/lib/postgresql/data
     networks:
       - abrigo
+    ports:
+      - "127.0.0.1:5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
       interval: 10s
@@ -168,11 +170,13 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      PRICING_API_KEY: ${PRICING_API_KEY:-}
+      PRICING_BASE_URL: ${PRICING_BASE_URL:-}
       ENABLE_CRON: "false"
-      ENABLE_TEMPORAL: "true"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
+      REPORT_EXPORT_DIR: /var/lib/abrigo-reports
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -201,6 +205,7 @@ services:
         max-file: "3"
     volumes:
       - abrigo_import_uploads:/var/lib/abrigo-imports
+      - abrigo_report_exports:/var/lib/abrigo-reports
 
   temporal-worker:
     build:
@@ -216,10 +221,12 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      ENABLE_TEMPORAL: "true"
+      PRICING_API_KEY: ${PRICING_API_KEY:-}
+      PRICING_BASE_URL: ${PRICING_BASE_URL:-}
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
+      REPORT_EXPORT_DIR: /var/lib/abrigo-reports
     entrypoint: ["node", "dist/temporal/worker.js"]
     depends_on:
       postgres:
@@ -232,6 +239,7 @@ services:
       - abrigo
     volumes:
       - abrigo_import_uploads:/var/lib/abrigo-imports
+      - abrigo_report_exports:/var/lib/abrigo-reports
 
   temporal-init:
     build:
@@ -243,12 +251,10 @@ services:
       - ../backend/.env
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      ENABLE_TEMPORAL: "true"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
       NOTIFICATION_BOOTSTRAP_CRON: ${NOTIFICATION_BOOTSTRAP_CRON:-*/30 * * * *}
-      # Sobrescreve backend/.env (localhost:5433 = host); na rede Docker usar o serviço postgres:5432
       DB_HOST: postgres
       DB_PORT: 5432
     entrypoint: ["node", "dist/temporal/schedules.js"]
@@ -281,6 +287,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:3000}
+      PRICING_API_KEY: ${PRICING_API_KEY}
       ENABLE_CRON: "false"
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -313,8 +320,8 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: frontend/Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-${VITE_API_BASE_URL:-http://localhost/api/v1}}
         NEXT_PUBLIC_LOGO_URL: ${NEXT_PUBLIC_LOGO_URL:-${VITE_LOGO_URL:-/default_logo.png}}
@@ -376,9 +383,6 @@ services:
     networks:
       - abrigo
 
-  # Backups agendados: Temporal schedule `system-backup-cron` + activity `runSystemBackup`
-  # (runtime.scheduled_backup.* em system_config; UI no painel admin, super-admin).
-  # Dump local pontual (opcional): docker compose --profile backup-tools run --rm backup-tools
   backup-tools:
     profiles: ["backup-tools"]
     build:
@@ -414,6 +418,7 @@ volumes:
   abrigo_pricing_postgres_data:
   temporal_postgres_data:
   abrigo_import_uploads:
+  abrigo_report_exports:
 
 networks:
   abrigo:
