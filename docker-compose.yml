@@ -171,7 +171,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       PRICING_API_KEY: ${PRICING_API_KEY:-}
-      PRICING_BASE_URL: ${PRICING_BASE_URL:-}
+      PRICING_BASE_URL: ${PRICING_BASE_URL:-http://localhost:3010}
       ENABLE_CRON: "false"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
@@ -222,7 +222,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       PRICING_API_KEY: ${PRICING_API_KEY:-}
-      PRICING_BASE_URL: ${PRICING_BASE_URL:-}
+      PRICING_BASE_URL: ${PRICING_BASE_URL:-http://localhost:3010}
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: abrigo
