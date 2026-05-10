@@ -159,6 +159,8 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+      args:
+        STOKIO_DATABASE_URL: "${STOKIO_DATABASE_URL:?required}"
     restart: always
     env_file:
       - ../.env
@@ -211,6 +213,8 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.temporal
+      args:
+        STOKIO_DATABASE_URL: "${STOKIO_DATABASE_URL:?required}"
     restart: always
     env_file:
       - ../.env
@@ -245,6 +249,8 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile.temporal
+      args:
+        STOKIO_DATABASE_URL: "${STOKIO_DATABASE_URL:?required}"
     restart: "no"
     env_file:
       - ../.env
@@ -270,6 +276,8 @@ services:
     build:
       context: ../stokio-api-price-search
       dockerfile: Dockerfile
+      args:
+        DATABASE_URL: "${PRICE_SEARCH_DATABASE_URL:-${DATABASE_URL:?required}}"
     restart: always
     env_file:
       - ../.env
@@ -323,12 +331,12 @@ services:
       context: ..
       dockerfile: frontend/Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-${VITE_API_BASE_URL:-http://localhost/api/v1}}
-        NEXT_PUBLIC_LOGO_URL: ${NEXT_PUBLIC_LOGO_URL:-${VITE_LOGO_URL:-/default_logo.png}}
+        NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-${VITE_API_BASE_URL:?required}}"
+        NEXT_PUBLIC_LOGO_URL: "${NEXT_PUBLIC_LOGO_URL:-${VITE_LOGO_URL:?required}}"
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-${VITE_PUBLIC_APP_NAME:-}}
         NEXT_PUBLIC_APP_LOGO_URL: ${NEXT_PUBLIC_APP_LOGO_URL:-${VITE_PUBLIC_APP_LOGO_URL:-}}
-        NEXT_PUBLIC_R2_PUBLIC_BASE_URL: ${NEXT_PUBLIC_R2_PUBLIC_BASE_URL:-${VITE_R2_PUBLIC_BASE_URL:-${R2_PUBLIC_BASE_URL:-}}}
-        NEXT_PUBLIC_X_API_KEY: ${NEXT_PUBLIC_X_API_KEY:-}
+        NEXT_PUBLIC_R2_PUBLIC_BASE_URL: "${NEXT_PUBLIC_R2_PUBLIC_BASE_URL:-${VITE_R2_PUBLIC_BASE_URL:-${R2_PUBLIC_BASE_URL:?required}}}"
+        NEXT_PUBLIC_X_API_KEY: "${NEXT_PUBLIC_X_API_KEY:-${X_API_KEY:?required}}"
     restart: always
     environment:
       HOSTNAME: "0.0.0.0"
