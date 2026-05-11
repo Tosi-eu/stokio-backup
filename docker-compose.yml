@@ -157,8 +157,8 @@ services:
 
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
       args:
         STOKIO_DATABASE_URL: "${STOKIO_DATABASE_URL:?required}"
     restart: always
@@ -211,8 +211,8 @@ services:
 
   temporal-worker:
     build:
-      context: ../backend
-      dockerfile: Dockerfile.temporal
+      context: ..
+      dockerfile: backend/Dockerfile.temporal
       args:
         STOKIO_DATABASE_URL: "${STOKIO_DATABASE_URL:?required}"
     restart: always
@@ -247,8 +247,8 @@ services:
 
   temporal-init:
     build:
-      context: ../backend
-      dockerfile: Dockerfile.temporal
+      context: ..
+      dockerfile: backend/Dockerfile.temporal
       args:
         STOKIO_DATABASE_URL: "${STOKIO_DATABASE_URL:?required}"
     restart: "no"
