@@ -59,11 +59,10 @@ else
   if [ "$UPLOAD_R2" != "1" ]; then
     echo "[Backup] R2 skipped (set NODE_ENV=production or BACKUP_UPLOAD_R2=1 with R2 credentials to upload)"
   else
-    echo "[Backup] R2 skipped (missing R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY or R2_BUCKET_NAME)"
+    echo "[Backup] R2 skipped (missing R2 credentials)"
   fi
 fi
 
-# Local retention: keep newest N gzipped backups (R2_RETENTION_COUNT from compose, default 30)
 KEEP_LOCAL="${R2_RETENTION_COUNT:-30}"
 if [ "${KEEP_LOCAL}" -gt 0 ] 2>/dev/null; then
   OLD=$(ls -1t "$BACKUP_DIR"/backup_*.sql.gz 2>/dev/null | tail -n +"$((KEEP_LOCAL + 1))" || true)
